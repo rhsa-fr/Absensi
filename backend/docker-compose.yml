@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    # Menggunakan image postgis resmi agar otomatis mendukung tipe data Geometry/Geofence
+    image: postgis/postgis:15-3.3
+    container_name: absen_db_postgis
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: absen_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
