@@ -101,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
               setDialogState(() => isDialogLoading = true);
               try {
                 final response = await http.post(
-                  Uri.parse('http://10.41.159.137:8000/api/v1/auth/forgot-password'),
+                  Uri.parse('http://192.168.1.7:8000/api/v1/auth/forgot-password'),
                   headers: {'Content-Type': 'application/json'},
                   body: jsonEncode({'email': emailResetController.text.trim()}),
                 );
@@ -159,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
               setDialogState(() => isDialogLoading = true);
               try {
                 final response = await http.post(
-                  Uri.parse('http://10.41.159.137:8000/api/v1/auth/reset-password'),
+                  Uri.parse('http://192.168.1.7:8000/api/v1/auth/reset-password'),
                   headers: {'Content-Type': 'application/json'},
                   body: jsonEncode({
                     'email': emailResetController.text.trim(),
@@ -401,7 +401,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Icon(Icons.lock_outline_rounded, size: 10, color: Color(0xFF495057)),
                         const SizedBox(width: 6),
                         Text(
-                          'PRESENSI ONLINE',
+                          'Presensi Online',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 8.5,
                             fontWeight: FontWeight.w900,
@@ -462,7 +462,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         // Input Email
                         Text(
-                          'ALAMAT EMAIL',
+                          'Alamat Email',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
@@ -497,7 +497,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'KATA SANDI',
+                              'Kata Sandi',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
@@ -572,7 +572,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       ),
                                     )
                                   : Text(
-                                      'LOGIN',
+                                      'Login',
                                       style: GoogleFonts.plusJakartaSans(
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
@@ -613,34 +613,48 @@ class _LoginScreenState extends State<LoginScreen> {
                           builder: (context, child) {
                             final isLoading = _loginController.state == LoginState.loading;
                             
-                            return OutlinedButton.icon(
-                              onPressed: isLoading ? null : () => _loginController.loginWithGoogle(),
-                              icon: Image.network(
-                                'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                                height: 16,
-                                width: 16,
-                                errorBuilder: (context, error, stackTrace) => const Icon(
-                                  Icons.g_mobiledata_rounded,
-                                  color: Colors.redAccent,
-                                  size: 20,
-                                ),
+                            return Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
-                              label: Text(
-                                'MASUK DENGAN GOOGLE',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF495057),
-                                  letterSpacing: 0.5,
+                              child: OutlinedButton(
+                                onPressed: isLoading ? null : () => _loginController.loginWithGoogle(),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: const Color(0xFF1E293B),
+                                  elevation: 0,
                                 ),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/google_logo.png',
+                                      height: 20,
+                                      width: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      'Masuk dengan Google',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF334155),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                side: const BorderSide(color: Color(0xFFCED4DA), width: 1.5),
-                                backgroundColor: Colors.white,
                               ),
                             );
                           },

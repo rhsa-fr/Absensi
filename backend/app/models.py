@@ -39,6 +39,7 @@ class User(Base):
     is_wfh_allowed = Column(Boolean, default=False)
     reset_token = Column(String(100), nullable=True)
     reset_token_expires = Column(DateTime, nullable=True)
+    fcm_token = Column(String(255), nullable=True)
     
     role_id = Column(Integer, ForeignKey("roles.id"))
     department_id = Column(Integer, ForeignKey("departments.id"))

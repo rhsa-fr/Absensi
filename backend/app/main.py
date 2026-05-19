@@ -25,6 +25,23 @@ app.add_middleware(
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+@app.on_event("startup")
+async def startup_event():
+    # Self-healing database migration: Pastikan kolom fcm_token ada di PostgreSQL/SQLite sebelum request diproses
+    from app.db.session import engine
+    from sqlalchemy import text
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token VARCHAR(255)"))
+            print("[MIGRATION] Kolom fcm_token berhasil diverifikasi/ditambahkan!")
+    except Exception:
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN fcm_token VARCHAR(255)"))
+                print("[MIGRATION] Kolom fcm_token ditambahkan via fallback.")
+        except Exception as err:
+            print(f"[MIGRATION] Kolom fcm_token sudah siap (atau dilewati): {err}")
+
 # Mendaftarkan router ke main application
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(attendance.router, prefix="/api/v1")

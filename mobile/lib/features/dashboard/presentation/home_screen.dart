@@ -10,6 +10,7 @@ import '../../auth/presentation/login_screen.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile/core/session/user_session.dart';
+import 'package:mobile/core/services/notification_service.dart';
 
 class EmployeeHomeScreen extends StatefulWidget {
   const EmployeeHomeScreen({super.key});
@@ -56,12 +57,28 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     _fetchAttendanceHistory();
     _fetchLeaveData();
     _fetchNotifications();
+
+    // Registrasi listener untuk tap notifikasi agar langsung ke halaman cuti
+    NotificationService.onNotificationTapped = (page) {
+      if (!mounted) return;
+      if (page == 'cuti') {
+        setState(() {
+          _currentIndex = 2; // Pindah ke Tab Manajemen Cuti
+        });
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    NotificationService.onNotificationTapped = null;
+    super.dispose();
   }
 
   Future<void> _fetchGeofenceSettings() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.41.159.137:8000/api/v1/master/geofences'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/master/geofences'),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -191,7 +208,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   Future<void> _fetchAttendanceHistory() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.41.159.137:8000/api/v1/attendance/logs?user_id=${UserSession.userId}'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/attendance/logs?user_id=${UserSession.userId}'),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -260,7 +277,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   Future<void> _fetchLeaveData() async {
     try {
       final balanceResponse = await http.get(
-        Uri.parse('http://10.41.159.137:8000/api/v1/leaves/balance?user_id=${UserSession.userId}'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/leaves/balance?user_id=${UserSession.userId}'),
       );
       if (balanceResponse.statusCode == 200) {
         final balanceData = jsonDecode(balanceResponse.body);
@@ -280,7 +297,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       }
       
       final listResponse = await http.get(
-        Uri.parse('http://10.41.159.137:8000/api/v1/leaves/me?user_id=${UserSession.userId}'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/leaves/me?user_id=${UserSession.userId}'),
       );
       if (listResponse.statusCode == 200) {
         final List<dynamic> listData = jsonDecode(listResponse.body);
@@ -321,7 +338,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   Future<void> _fetchNotifications() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.41.159.137:8000/api/v1/users/${UserSession.userId}/notifications'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/users/${UserSession.userId}/notifications'),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -341,7 +358,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   Future<void> _markNotificationAsRead(int notifId) async {
     try {
       final response = await http.put(
-        Uri.parse('http://10.41.159.137:8000/api/v1/users/notifications/$notifId/read'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/users/notifications/$notifId/read'),
       );
       if (response.statusCode == 200) {
         _fetchNotifications();
@@ -949,486 +966,497 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   Widget _buildDashboardPage() {
     final todayStr = _getFormattedTodayDate();
     
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Branded Corporate App Bar Logo
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.asset(
-                  'assets/images/clockit_logo.png',
-                  width: 24,
-                  height: 24,
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _determinePosition();
+        await _fetchAttendanceHistory();
+        await _fetchLeaveData();
+        await _fetchNotifications();
+      },
+      color: const Color(0xFF121212),
+      backgroundColor: Colors.white,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Branded Corporate App Bar Logo
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset(
+                    'assets/images/clockit_logo.png',
+                    width: 24,
+                    height: 24,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Clockit',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF121212),
-                  letterSpacing: -0.5,
+                const SizedBox(width: 8),
+                Text(
+                  'Clockit',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFF121212),
+                    letterSpacing: -0.5,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-
-          // Header Karyawan
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF121212),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+              ],
+            ),
+            const SizedBox(height: 18),
+  
+            // Header Karyawan
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF121212),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          _getInitials(UserSession.fullName),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          todayStr,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          UserSession.fullName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                            letterSpacing: -0.3,
+                          ),
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: Text(
-                        _getInitials(UserSession.fullName),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  ],
+                ),
+                GestureDetector(
+                  onTap: _showNotificationsBottomSheet,
+                  child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      Text(
-                        todayStr,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[500],
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none_rounded,
+                          size: 20,
+                          color: Color(0xFF121212),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        UserSession.fullName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF1A1A1A),
-                          letterSpacing: -0.3,
+                      if (_unreadNotifCount > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              '$_unreadNotifCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ),
-                      ),
                     ],
                   ),
-                ],
-              ),
-              GestureDetector(
-                onTap: _showNotificationsBottomSheet,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
-                      ),
-                      child: const Icon(
-                        Icons.notifications_none_rounded,
-                        size: 20,
-                        color: Color(0xFF121212),
-                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+  
+            // GIANT PREMIUM PRESENSI CARD (The core WOW factor!)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ScanAttendanceScreen(
+                    cachedLatitude: _currentPosition?.latitude,
+                    cachedLongitude: _currentPosition?.longitude,
+                  )),
+                ).then((value) {
+                  if (value == true) {
+                    _fetchAttendanceHistory();
+                    _fetchLeaveData();
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF232526), Color(0xFF414345)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF121212).withOpacity(0.25),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
-                    if (_unreadNotifCount > 0)
-                      Positioned(
-                        right: -2,
-                        top: -2,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEF4444),
-                            shape: BoxShape.circle,
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white12,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          constraints: const BoxConstraints(
-                            minWidth: 16,
-                            minHeight: 16,
-                          ),
-                          child: Text(
-                            '$_unreadNotifCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                            ),
-                            textAlign: TextAlign.center,
+                          child: Row(
+                            children: const [
+                              Icon(Icons.circle, color: Color(0xFF10B981), size: 8),
+                              SizedBox(width: 6),
+                              Text(
+                                'Siap Presensi',
+                                style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                              ),
+                            ],
                           ),
                         ),
+                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white60, size: 14),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.08),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24, width: 1.5),
                       ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.qr_code_scanner_rounded,
+                          color: Colors.white,
+                          size: 38,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Pindai QR Presensi',
+                      style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.8),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Ketuk untuk melakukan absen masuk / pulang',
+                      style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 10, fontWeight: FontWeight.w500),
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 28),
-
-          // GIANT PREMIUM PRESENSI CARD (The core WOW factor!)
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ScanAttendanceScreen(
-                  cachedLatitude: _currentPosition?.latitude,
-                  cachedLongitude: _currentPosition?.longitude,
-                )),
-              ).then((value) {
-                if (value == true) {
-                  _fetchAttendanceHistory();
-                  _fetchLeaveData();
-                }
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.all(28),
+            ),
+            const SizedBox(height: 24),
+  
+            // Info Lokasi & Geofence (Subtle Bordered Card)
+            Container(
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF232526), Color(0xFF414345)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(32),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF121212).withOpacity(0.25),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Column(
+              child: Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white12,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(Icons.circle, color: Color(0xFF10B981), size: 8),
-                            SizedBox(width: 6),
-                            Text(
-                              'SIAP PRESENSI',
-                              style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white60, size: 14),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
                   Container(
-                    width: 76,
-                    height: 76,
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white24, width: 1.5),
+                      color: _isLocating 
+                          ? const Color(0xFFF3F4F6) 
+                          : (_geofenceStatus.contains('Kantor') ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2)), 
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.qr_code_scanner_rounded,
-                        color: Colors.white,
-                        size: 38,
+                    child: Icon(
+                      Icons.location_on_rounded, 
+                      color: _isLocating 
+                          ? Colors.grey 
+                          : (_geofenceStatus.contains('Kantor') ? const Color(0xFF10B981) : const Color(0xFFEF4444)), 
+                      size: 20
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isLocating ? 'Mendeteksi Koordinat...' : _geofenceStatus,
+                          style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _locationDetails,
+                          style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _determinePosition,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
                       ),
+                      child: _isLocating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF121212))),
+                            )
+                          : const Icon(Icons.sync_rounded, color: Color(0xFF121212), size: 16),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'PINDAI QR PRESENSI',
-                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.8),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Ketuk untuk melakukan absen masuk / pulang',
-                    style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 10, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Info Lokasi & Geofence (Subtle Bordered Card)
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+            const SizedBox(height: 24),
+  
+            // Stats Kehadiran (In & Out side-by-side)
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.login_rounded, color: Color(0xFF10B981), size: 16),
+                        ),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Jam Masuk',
+                          style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _checkInTime,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 16),
+                        ),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Jam Pulang',
+                          style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _checkOutTime,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: Row(
+            const SizedBox(height: 32),
+  
+            // Grid of Services / Quick Actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _isLocating 
-                        ? const Color(0xFFF3F4F6) 
-                        : (_geofenceStatus.contains('Kantor') ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2)), 
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    Icons.location_on_rounded, 
-                    color: _isLocating 
-                        ? Colors.grey 
-                        : (_geofenceStatus.contains('Kantor') ? const Color(0xFF10B981) : const Color(0xFFEF4444)), 
-                    size: 20
+                const Text(
+                  'Layanan Utama',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
+                ),
+                Text(
+                  'Menu Karyawan',
+                  style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LeaveRequestScreen()),
+                      ).then((value) {
+                        _fetchLeaveData();
+                        _fetchNotifications();
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.calendar_month_rounded, size: 18, color: Color(0xFF121212)),
+                          SizedBox(width: 10),
+                          Text(
+                            'Ajukan Cuti',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF121212), letterSpacing: 0.5),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isLocating ? 'Mendeteksi Koordinat...' : _geofenceStatus,
-                        style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 13, fontWeight: FontWeight.bold),
+                  child: GestureDetector(
+                    onTap: () {
+                      _showGeofenceDetailsDialog();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _locationDetails,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 10, fontWeight: FontWeight.w500),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.map_rounded, size: 18, color: Color(0xFF121212)),
+                          SizedBox(width: 10),
+                          Text(
+                            'Info Kantor',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF121212), letterSpacing: 0.5),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+  
+            // Recent Activity Section (The best space filler!)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Aktivitas Hari Ini',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
                 ),
                 GestureDetector(
-                  onTap: _determinePosition,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FA),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
-                    ),
-                    child: _isLocating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF121212))),
-                          )
-                        : const Icon(Icons.sync_rounded, color: Color(0xFF121212), size: 16),
+                  onTap: () {
+                    setState(() {
+                      _currentIndex = 1; // Pindah ke halaman riwayat
+                    });
+                  },
+                  child: Text(
+                    'Lihat Semua',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Stats Kehadiran (In & Out side-by-side)
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.login_rounded, color: Color(0xFF10B981), size: 16),
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'JAM MASUK',
-                        style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _checkInTime,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 16),
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'JAM PULANG',
-                        style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _checkOutTime,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-
-          // Grid of Services / Quick Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Layanan Utama',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
-              ),
-              Text(
-                'Menu Karyawan',
-                style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LeaveRequestScreen()),
-                    ).then((value) {
-                      _fetchLeaveData();
-                      _fetchNotifications();
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.calendar_month_rounded, size: 18, color: Color(0xFF121212)),
-                        SizedBox(width: 10),
-                        Text(
-                          'AJUKAN CUTI',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF121212), letterSpacing: 0.5),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    _showGeofenceDetailsDialog();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE9ECEF), width: 1.5),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.map_rounded, size: 18, color: Color(0xFF121212)),
-                        SizedBox(width: 10),
-                        Text(
-                          'INFO KANTOR',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF121212), letterSpacing: 0.5),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-
-          // Recent Activity Section (The best space filler!)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Aktivitas Hari Ini',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
-              ),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _currentIndex = 1; // Pindah ke halaman riwayat
-                  });
-                },
-                child: Text(
-                  'Lihat Semua',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildRecentActivityWidget(),
-        ],
+            const SizedBox(height: 16),
+            _buildRecentActivityWidget(),
+          ],
+        ),
       ),
     );
   }
@@ -1530,136 +1558,163 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
 
   // ==================== PAGE 3: STATUS CUTI ====================
   Widget _buildLeavePage() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Manajemen Cuti',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const LeaveRequestScreen()),
-                  );
-                },
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('AJUKAN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Pantau kuota dan status pengajuan izin/cuti Anda.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 24),
-
-          // Leave Balance Card QuickView
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF121212),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _fetchLeaveData();
+        await _fetchNotifications();
+      },
+      color: const Color(0xFF121212),
+      backgroundColor: Colors.white,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'SISA KUOTA CUTI TAHUNAN',
-                      style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '$_leaveBalance Hari',
-                      style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
-                    ),
-                  ],
+                const Text(
+                  'Manajemen Cuti',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
                 ),
-                const Icon(Icons.calendar_month_rounded, color: Colors.white60, size: 36),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LeaveRequestScreen()),
+                    ).then((value) {
+                      _fetchLeaveData();
+                      _fetchNotifications();
+                    });
+                  },
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Ajukan', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(height: 32),
+            const SizedBox(height: 8),
+            Text(
+              'Pantau kuota dan status pengajuan izin/cuti Anda.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 24),
+  
+            // Leave Balance Card QuickView
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF121212),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Sisa Kuota Cuti Tahunan',
+                        style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$_leaveBalance Hari',
+                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                      ),
+                    ],
+                  ),
+                  const Icon(Icons.calendar_month_rounded, color: Colors.white60, size: 36),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+  
+            const Text(
+              'Riwayat Pengajuan Cuti',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
+            ),
+            const SizedBox(height: 16),
+  
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _leaveRequests.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final req = _leaveRequests[index];
+                final String status = (req['status'] ?? 'Pending').toString();
+                final String statusLower = status.toLowerCase();
 
-          const Text(
-            'Riwayat Pengajuan Cuti',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A)),
-          ),
-          const SizedBox(height: 16),
+                Color badgeBgColor;
+                Color badgeTextColor;
 
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _leaveRequests.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final req = _leaveRequests[index];
-              final isPending = req['status'] == 'Pending';
+                if (statusLower == 'pending' || statusLower == 'menunggu') {
+                  badgeBgColor = const Color(0xFFFEF3C7); // Kuning/Amber
+                  badgeTextColor = const Color(0xFFD97706);
+                } else if (statusLower == 'approved' || statusLower == 'disetujui') {
+                  badgeBgColor = const Color(0xFFECFDF5); // Hijau/Emerald
+                  badgeTextColor = const Color(0xFF10B981);
+                } else { // 'rejected' atau 'ditolak'
+                  badgeBgColor = const Color(0xFFFEF2F2); // Merah/Rose
+                  badgeTextColor = const Color(0xFFEF4444);
+                }
 
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          req['date'],
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1A1A1A)),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isPending ? const Color(0xFFFEF3C7) : const Color(0xFFD1FAE5),
-                            borderRadius: BorderRadius.circular(12),
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE9ECEF), width: 1),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            req['date'],
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1A1A1A)),
                           ),
-                          child: Text(
-                            req['status'],
-                            style: TextStyle(
-                              color: isPending ? const Color(0xFFD97706) : const Color(0xFF059669),
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: badgeBgColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              status,
+                              style: TextStyle(
+                                color: badgeTextColor,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Keperluan: ${req['reason']}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Durasi: ${req['days']} Hari Kerja',
-                      style: const TextStyle(fontSize: 10, color: Color(0xFF121212), fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Keperluan: ${req['reason']}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Durasi: ${req['days']} Hari Kerja',
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF121212), fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1716,7 +1771,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               const SizedBox(height: 24),
 
               // Hardware Lock status
-              Text('KEAMANAN & HARDWARE LOCK', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+              Text('Keamanan & Hardware Lock', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey[600])),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(18),
@@ -1760,7 +1815,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                 ),
-                child: const Text('KELUAR DARI APLIKASI', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text('Keluar dari Aplikasi', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -1772,34 +1827,124 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   void _showLogoutConfirmDialog() {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) {
-        return AlertDialog(
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Text('🚪 Konfirmasi Keluar', style: TextStyle(fontWeight: FontWeight.w900)),
-          content: const Text(
-            'Apakah Anda yakin ingin keluar dari akun Anda?\n'
-            'Anda harus masuk kembali dengan kredensial sah.',
-            style: TextStyle(fontWeight: FontWeight.w500, height: 1.5),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('BATAL', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          elevation: 10,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFEF4444).withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Title
+                const Text(
+                  'Konfirmasi Keluar',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1A1A1A),
+                    letterSpacing: 0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                // Description
+                const Text(
+                  'Apakah Anda yakin ingin keluar dari akun Anda? Anda harus masuk kembali dengan kredensial sah.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6C757D),
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                // Action Buttons
+                Row(
+                  children: [
+                    // Cancel Button
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFE9ECEF), width: 1.5),
+                          foregroundColor: const Color(0xFF6C757D),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: const Text(
+                          'BATAL',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Logout Button
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(context); // Tutup dialog
+                          await UserSession.clearSession();
+                          if (!mounted) return;
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'KELUAR',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context); // Tutup dialog
-                await UserSession.clearSession();
-                if (!mounted) return;
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              },
-              child: const Text('KELUAR', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
-            )
-          ],
+          ),
         );
       },
     );

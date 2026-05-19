@@ -202,7 +202,7 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
                     Expanded(
                       child: TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('BATAL', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                        child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     Expanded(
@@ -217,7 +217,7 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: const Text('AKTIFKAN', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('Aktifkan', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -280,7 +280,7 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
                     Expanded(
                       child: TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('BATAL', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                        child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     Expanded(
@@ -295,7 +295,7 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: const Text('PENGATURAN', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('Pengaturan', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -452,7 +452,7 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
                       ),
                     ),
                     child: Text(
-                      'TUTUP',
+                      'Tutup',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
@@ -568,7 +568,7 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
       };
 
       final response = await http.post(
-        Uri.parse('http://10.41.159.137:8000/api/v1/attendance/scan'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/attendance/scan'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
       );
@@ -789,7 +789,7 @@ class _ScanAttendanceScreenState extends State<ScanAttendanceScreen> {
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'KLAIM KEHADIRAN WFH',
+                    'Klaim Kehadiran WFH',
                     style: GoogleFonts.plusJakartaSans(
                       color: Colors.white,
                       fontSize: 14,

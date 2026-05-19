@@ -1,0 +1,36 @@
+# Virtual Environment
+backend/venv/
+venv/
+.venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+backend/app/__pycache__/
+backend/app/core/__pycache__/
+backend/app/routers/__pycache__/
+
+# Backend Uploads & Local DB
+backend/uploads/
+backend/clockit.db
+backend/app.db
+*.db
+
+# Environment & Private Keys
+.env
+backend/.env
+backend/firebase-service-account.json
+firebase-service-account.json
+*.json.secret
+
+# IDEs & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

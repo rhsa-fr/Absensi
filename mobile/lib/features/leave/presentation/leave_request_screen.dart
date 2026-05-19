@@ -42,7 +42,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
   Future<void> _fetchLeaveBalance() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.41.159.137:8000/api/v1/leaves/balance?user_id=${UserSession.userId}'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/leaves/balance?user_id=${UserSession.userId}'),
       );
       if (!mounted) return;
       if (response.statusCode == 200) {
@@ -84,7 +84,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
       // Siapkan Multipart Request ke Endpoint Backend FastAPI
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://10.41.159.137:8000/api/v1/leaves/upload'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/leaves/upload'),
       );
 
       if (pickedFile.bytes != null) {
@@ -212,7 +212,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
       };
 
       final response = await http.post(
-        Uri.parse('http://10.41.159.137:8000/api/v1/leaves/?user_id=${UserSession.userId}'),
+        Uri.parse('http://192.168.1.7:8000/api/v1/leaves/?user_id=${UserSession.userId}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
       );
@@ -257,24 +257,90 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return AlertDialog(
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Text('✅ Pengajuan Sukses', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1A1A1A))),
-          content: const Text(
-            'Pengajuan cuti/izin Anda berhasil dikirim ke HRD.\n'
-            'Silakan pantau status persetujuan secara berkala.',
-            style: TextStyle(fontWeight: FontWeight.w500, height: 1.5),
+          elevation: 10,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE6F4EA),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF10B981),
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Title
+                const Text(
+                  'Pengajuan Sukses',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1A1A1A),
+                    letterSpacing: 0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                // Description
+                const Text(
+                  'Pengajuan cuti/izin Anda berhasil dikirim ke HRD. Silakan pantau status persetujuan secara berkala.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6C757D),
+                    fontWeight: FontWeight.w500,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                // Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Tutup dialog
+                      Navigator.pop(context); // Kembali ke dashboard
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF121212),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Kembali ke Beranda',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Tutup dialog
-                Navigator.pop(context); // Kembali ke dashboard
-              },
-              child: const Text('KEMBALI KE BERANDA', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            )
-          ],
         );
       },
     );
@@ -287,7 +353,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('PENGAJUAN CUTI & IZIN', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+        title: const Text('Pengajuan Cuti & Izin', style: TextStyle(color: Color(0xFF1A1A1A), fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
         backgroundColor: const Color(0xFFF8F9FA),
         elevation: 0,
         centerTitle: true,
@@ -318,7 +384,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'SISA KUOTA CUTI TAHUNAN',
+                            'Sisa Kuota Cuti Tahunan',
                             style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                           ),
                           const SizedBox(height: 6),
@@ -341,7 +407,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
                 const SizedBox(height: 32),
 
                 // 2. PEMILIH TANGGAL (Date Picker Trigger)
-                Text('DURASI CUTI / IZIN', style: theme.textTheme.labelLarge),
+                Text('Durasi Cuti / Izin', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: () => _selectDateRange(context),
@@ -380,7 +446,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
                 const SizedBox(height: 24),
 
                 // 3. ALASAN PENGAJUAN (TextArea)
-                Text('ALASAN UTAMA', style: theme.textTheme.labelLarge),
+                Text('Alasan Utama', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _reasonController,
@@ -398,7 +464,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
                 const SizedBox(height: 24),
 
                 // 4. UPLOAD DOKUMEN PENDUKUNG (Premium Picker Widget)
-                Text('DOKUMEN PENDUKUNG / SURAT SAKIT (OPSIONAL)', style: theme.textTheme.labelLarge),
+                Text('Dokumen Pendukung / Surat Sakit (Opsional)', style: theme.textTheme.labelLarge),
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: _isUploadingFile ? null : _pickAndUploadFile,
@@ -489,7 +555,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     child: const Text(
-                                      'GANTI',
+                                      'Ganti',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
@@ -550,7 +616,7 @@ class _LeaveRequestScreenState extends State<LeaveRequestScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text('KIRIM PENGAJUAN SEKARANG'),
+                      : const Text('Kirim Pengajuan Sekarang'),
                 ),
               ],
             ),

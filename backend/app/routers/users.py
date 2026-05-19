@@ -181,3 +181,32 @@ async def mark_notification_as_read(notif_id: int, db: AsyncSession = Depends(ge
     notif.is_read = True
     await db.commit()
     return {"status": "success", "message": "Notifikasi ditandai sebagai dibaca."}
+
+from pydantic import BaseModel
+class FcmTokenRequest(BaseModel):
+    fcm_token: str
+
+@router.post("/{user_id}/fcm-token")
+async def bind_fcm_token(user_id: int, payload: FcmTokenRequest, db: AsyncSession = Depends(get_db)):
+    """Menyimpan FCM Token HP karyawan untuk Push Notifications"""
+    # Self-healing migration: Pastikan kolom fcm_token ada di database
+    try:
+        from sqlalchemy import text
+        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token VARCHAR(255)"))
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        try:
+            await db.execute(text("ALTER TABLE users ADD COLUMN fcm_token VARCHAR(255)"))
+            await db.commit()
+        except Exception:
+            await db.rollback()
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Karyawan tidak ditemukan.")
+    
+    user.fcm_token = payload.fcm_token
+    await db.commit()
+    return {"status": "success", "message": "FCM Token berhasil diikat dengan akun karyawan."}

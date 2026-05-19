@@ -31,7 +31,7 @@ async def upload_leave_document(file: UploadFile = File(...)):
         
     return {
         "status": "success",
-        "document_url": f"http://10.41.159.137:8000/uploads/{safe_filename}"
+        "document_url": f"http://192.168.1.7:8000/uploads/{safe_filename}"
     }
 
 @router.get("/me", response_model=List[LeaveRequestResponse])
@@ -52,7 +52,16 @@ async def get_my_leave_balance(user_id: int = Depends(get_current_user_id), db: 
     balance = result.scalars().first()
     
     if not balance:
-        raise HTTPException(status_code=404, detail="Data kuota cuti belum diatur untuk tahun ini.")
+        # Auto-initialize default 12 days quota for new users (self-healing architecture)
+        balance = LeaveBalance(
+            user_id=user_id,
+            year=current_year,
+            total_quota=12,
+            used_quota=0
+        )
+        db.add(balance)
+        await db.commit()
+        await db.refresh(balance)
         
     return balance
 
@@ -70,10 +79,21 @@ async def create_leave_request(
     )
     balance = balance_result.scalars().first()
     
-    if not balance or balance.total_quota - balance.used_quota <= 0:
+    if not balance:
+        # Auto-initialize default 12 days quota if not exists
+        balance = LeaveBalance(
+            user_id=user_id,
+            year=current_year,
+            total_quota=12,
+            used_quota=0
+        )
+        db.add(balance)
+        await db.commit()
+        await db.refresh(balance)
+        
+    if balance.total_quota - balance.used_quota <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Kuota cuti Anda sudah habis.")
         
-    # 2. Simpan pengajuan cuti
     new_leave = LeaveRequest(
         user_id=user_id,
         start_date=request.start_date.replace(tzinfo=None),
@@ -84,7 +104,7 @@ async def create_leave_request(
     )
     db.add(new_leave)
     
-    # 3. Trigger Notifikasi Terkirim Ke Karyawan
+    # 3. Trigger Notifikasi Terkirim Ke Karyawan (In-App)
     start_str = request.start_date.strftime("%d/%m/%Y")
     end_str = request.end_date.strftime("%d/%m/%Y")
     notif = Notification(
@@ -93,9 +113,22 @@ async def create_leave_request(
         message=f"Pengajuan cuti/izin Anda ({start_str} s/d {end_str}) berhasil dikirim ke HRD. Status: Pending."
     )
     db.add(notif)
-    
     await db.commit()
     await db.refresh(new_leave)
+
+    # 4. Trigger Push Notification Nyata ke HP
+    try:
+        user_res = await db.execute(select(User).where(User.id == user_id))
+        user = user_res.scalars().first()
+        if user and user.fcm_token:
+            from app.core.notifications import send_push_notification
+            await send_push_notification(
+                fcm_token=user.fcm_token,
+                title="Pengajuan Cuti Terkirim 📅",
+                body=f"Pengajuan cuti Anda ({start_str} s/d {end_str}) berhasil dikirim ke HRD."
+            )
+    except Exception:
+        pass
     
     return new_leave
 
@@ -134,8 +167,22 @@ async def approve_leave(leave_id: int, db: AsyncSession = Depends(get_db)):
         message=f"Selamat! Pengajuan cuti/izin Anda untuk tanggal {start_str} s/d {end_str} telah DISETUJUI oleh HRD."
     )
     db.add(notif)
-    
     await db.commit()
+
+    # 5. Trigger Real-Time Push Notification ke HP Karyawan
+    try:
+        user_res = await db.execute(select(User).where(User.id == leave_req.user_id))
+        user = user_res.scalars().first()
+        if user and user.fcm_token:
+            from app.core.notifications import send_push_notification
+            await send_push_notification(
+                fcm_token=user.fcm_token,
+                title="Pengajuan Cuti Disetujui 🎉",
+                body=f"Selamat! Pengajuan cuti Anda ({start_str} s/d {end_str}) telah DISETUJUI oleh HRD."
+            )
+    except Exception:
+        pass
+    
     return {"message": "Cuti disetujui dan kuota telah dipotong."}
 
 @router.get("/")
@@ -183,6 +230,20 @@ async def reject_leave(leave_id: int, db: AsyncSession = Depends(get_db)):
         message=f"Mohon maaf, pengajuan cuti/izin Anda ({start_str} s/d {end_str}) telah DITOLAK oleh HRD."
     )
     db.add(notif)
-    
     await db.commit()
+
+    # Trigger Real-Time Push Notification ke HP Karyawan
+    try:
+        user_res = await db.execute(select(User).where(User.id == leave_req.user_id))
+        user = user_res.scalars().first()
+        if user and user.fcm_token:
+            from app.core.notifications import send_push_notification
+            await send_push_notification(
+                fcm_token=user.fcm_token,
+                title="Pengajuan Cuti Ditolak ⚠️",
+                body=f"Mohon maaf, pengajuan cuti Anda ({start_str} s/d {end_str}) DITOLAK oleh HRD."
+            )
+    except Exception:
+        pass
+    
     return {"message": "Pengajuan cuti ditolak."}

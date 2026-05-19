@@ -39,26 +39,34 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
         )
         
     # 3. Verifikasi Device (Hardware Locking / Device Binding)
-    device_result = await db.execute(select(UserDevice).where(UserDevice.user_id == user.id))
-    user_devices = device_result.scalars().all()
-    
-    if not user_devices:
-        # Akun belum memiliki perangkat yang terikat. Lakukan "Silent Auto-Binding".
-        new_device = UserDevice(
-            user_id=user.id,
-            device_id=request.device_id,
-            # device_model bisa diambil dari User-Agent atau request body lainnya jika tersedia
-        )
-        db.add(new_device)
-        await db.commit()
+    device_bound_res = await db.execute(select(UserDevice).where(UserDevice.device_id == request.device_id))
+    existing_device_binding = device_bound_res.scalars().first()
+
+    if existing_device_binding:
+        if existing_device_binding.user_id != user.id:
+            # Transfer kepemilikan perangkat ke user aktif saat ini
+            existing_device_binding.user_id = user.id
+            await db.commit()
     else:
-        # Akun sudah terikat dengan perangkat. Cek apakah device_id valid.
-        is_device_valid = any(d.device_id == request.device_id for d in user_devices)
-        if not is_device_valid:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Gunakan perangkat yang terdaftar",
+        device_result = await db.execute(select(UserDevice).where(UserDevice.user_id == user.id))
+        user_devices = device_result.scalars().all()
+        
+        if not user_devices:
+            # Akun belum memiliki perangkat yang terikat. Lakukan "Silent Auto-Binding".
+            new_device = UserDevice(
+                user_id=user.id,
+                device_id=request.device_id,
             )
+            db.add(new_device)
+            await db.commit()
+        else:
+            # Akun sudah terikat dengan perangkat. Cek apakah device_id valid.
+            is_device_valid = any(d.device_id == request.device_id for d in user_devices)
+            if not is_device_valid:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Gunakan perangkat yang terdaftar",
+                )
             
     # 4. Generate JWT Token
     access_token_expires = timedelta(minutes=1440) # Misal validasi token 24 Jam
@@ -80,6 +88,7 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 from app.core.security import get_password_hash
 
 class ForgotPasswordRequest(BaseModel):
@@ -118,7 +127,7 @@ Tim Clockit"""
         
     try:
         msg = MIMEMultipart()
-        msg['From'] = smtp_from
+        msg['From'] = formataddr(('Clockit OTP Verification', smtp_from))
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
@@ -253,25 +262,34 @@ async def google_login(payload: GoogleLoginRequest, db: AsyncSession = Depends(g
         await db.refresh(user)
 
     # 3. Hardware Lock / Silent Device Binding
-    device_result = await db.execute(select(UserDevice).where(UserDevice.user_id == user.id))
-    user_devices = device_result.scalars().all()
+    device_bound_res = await db.execute(select(UserDevice).where(UserDevice.device_id == payload.device_id))
+    existing_device_binding = device_bound_res.scalars().first()
 
-    if not user_devices:
-        # Login pertama di perangkat baru -> Ikat otomatis
-        new_device = UserDevice(
-            user_id=user.id,
-            device_id=payload.device_id
-        )
-        db.add(new_device)
-        await db.commit()
+    if existing_device_binding:
+        if existing_device_binding.user_id != user.id:
+            # Transfer kepemilikan perangkat ke user Google aktif saat ini
+            existing_device_binding.user_id = user.id
+            await db.commit()
     else:
-        # Cek kesesuaian perangkat
-        is_device_valid = any(d.device_id == payload.device_id for d in user_devices)
-        if not is_device_valid:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Perangkat HP baru terdeteksi. Harap hubungi Admin untuk mereset kaitan HP Anda."
+        device_result = await db.execute(select(UserDevice).where(UserDevice.user_id == user.id))
+        user_devices = device_result.scalars().all()
+
+        if not user_devices:
+            # Login pertama di perangkat baru -> Ikat otomatis
+            new_device = UserDevice(
+                user_id=user.id,
+                device_id=payload.device_id
             )
+            db.add(new_device)
+            await db.commit()
+        else:
+            # Cek kesesuaian perangkat
+            is_device_valid = any(d.device_id == payload.device_id for d in user_devices)
+            if not is_device_valid:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Perangkat HP baru terdeteksi. Harap hubungi Admin untuk mereset kaitan HP Anda."
+                )
 
     # 4. Generate Local Session Token
     access_token_expires = timedelta(minutes=1440)
